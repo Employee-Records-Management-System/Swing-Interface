@@ -6,7 +6,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.Instant;
 import java.time.LocalDate;
 
 
@@ -34,6 +33,10 @@ public class Employee {
     private ContactInfo contactInfo;
 
     private String address;
+
+    private Gender gender;
+
+    private ContractType contractType;
 
 
 
