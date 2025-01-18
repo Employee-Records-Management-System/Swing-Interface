@@ -91,7 +91,7 @@ public class FetcherHelper<K> {
         }
     }
 
-    public void createData(K data) {
+    public K createData(K data) {
         String requestBody = gson.toJson(data);
 
         HttpRequest request = HttpRequest.newBuilder()
@@ -106,6 +106,7 @@ public class FetcherHelper<K> {
             if (response.statusCode() != 201) {
                 throw new RuntimeException("Failed to create data: " + response.statusCode());
             }
+            return gson.fromJson(response.body(), type);
         } catch (Exception e) {
             throw new RuntimeException("Failed to create data: " + e.getMessage());
         }
@@ -113,14 +114,14 @@ public class FetcherHelper<K> {
 
     public void deleteData(long id) {
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(String.format("/%s/%d", url, id)))
+                .uri(URI.create(String.format("%s/%d", url, id)))
                 .header("Authorization", AuthManager.token)
                 .DELETE()
                 .build();
 
         try {
             HttpResponse<String> response = ApiClient.getClient().send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() != 200) {
+            if (!String.valueOf(response.statusCode()).startsWith("2")) {
                 throw new RuntimeException("Failed to delete data: " + response.statusCode());
             }
         } catch (Exception e) {
