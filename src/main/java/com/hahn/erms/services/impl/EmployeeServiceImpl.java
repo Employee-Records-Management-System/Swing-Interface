@@ -49,8 +49,8 @@ public class EmployeeServiceImpl implements EmployeeService {
         return employeeFetcher.fetchData(id);
     }
 
-    public void createEmployee(Employee employee) {
-        employeeFetcher.createData(employee);
+    public Employee createEmployee(Employee employee) {
+       return employeeFetcher.createData(employee);
     }
 
     public void updateEmployee(long id, Employee employee) {

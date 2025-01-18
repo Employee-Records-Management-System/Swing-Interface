@@ -14,7 +14,7 @@ public interface EmployeeService {
     List<Employee> getEmployeesByPage(int page, int size, String order);
     List<Employee> getEmployeesByPage(int page, int size, String order, String sortField);
     Employee getEmployeeById(long id);
-    void createEmployee(Employee employee);
+    Employee createEmployee(Employee employee);
     void updateEmployee(long id, Employee employee);
     void deleteEmployee(long id);
     List<Department> getAllDepartments();
