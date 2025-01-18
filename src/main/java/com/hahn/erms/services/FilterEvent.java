@@ -1,5 +1,5 @@
 package com.hahn.erms.services;
 
 public interface FilterEvent {
-    void filter();
+    void onFilter(String searchText, String selectedDepartment, String selectedStatus);
 }
