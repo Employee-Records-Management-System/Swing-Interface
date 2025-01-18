@@ -1,10 +1,7 @@
 package com.hahn.erms.models;
 
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.Instant;
 
@@ -18,4 +15,5 @@ public class Department {
 
     private String name;
 
+    public Department(String name) {this.name = name;}
 }
