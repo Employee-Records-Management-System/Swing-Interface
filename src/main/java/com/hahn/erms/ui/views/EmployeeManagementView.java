@@ -1,33 +1,35 @@
 package com.hahn.erms.ui.views;
 
-import com.hahn.erms.models.*;
+import com.hahn.erms.models.AuthManager;
+import com.hahn.erms.models.Department;
+import com.hahn.erms.models.Employee;
 import com.hahn.erms.services.EmployeeService;
+import com.hahn.erms.services.RapportService;
 import com.hahn.erms.services.impl.EmployeeServiceImpl;
+import com.hahn.erms.services.impl.RapportServiceImpl;
 import com.hahn.erms.ui.components.TopPanel;
-import com.hahn.erms.utils.PermissionHelper;
+import com.hahn.erms.ui.components.dialogs.AddEmployeeDialog;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableRowSorter;
 import java.awt.*;
-import java.awt.event.KeyEvent;
 import java.util.List;
-import java.util.Vector;
 
 public class EmployeeManagementView extends JFrame {
+
+ private final EmployeeService employeeService;
+ private final RapportService rapportService;
  private JTable employeeTable;
  private DefaultTableModel tableModel;
  private TableRowSorter<DefaultTableModel> sorter;
- private final List<Employee> employeeList;
- private final EmployeeService employeeService;
- private final Account currentUser;
-
+ private List<Employee> visibleEmployees;
  public EmployeeManagementView() {
-  this.currentUser = AuthManager.account;
+  this.employeeService = new EmployeeServiceImpl();
+  this.rapportService = new RapportServiceImpl();
+  this.visibleEmployees = employeeService.getAllEmployees();
   initializeFrame();
-  employeeList = new Vector<>();
-  employeeService = new EmployeeServiceImpl();
   createComponents();
   setupLayout();
   loadInitialData();
@@ -64,107 +66,49 @@ public class EmployeeManagementView extends JFrame {
   setLayout(new BorderLayout());
 
   // Header Panel
-  JPanel headerPanel = createHeaderPanel();
-  add(headerPanel, BorderLayout.NORTH);
+  TopPanel topPanel = new TopPanel(
+          employeeService.getAllDepartments().stream().map(Department::getName).toList(),
+          employeeService.getAllEmploymentStatus(),
+          this::filterEmployeesAndLoad
+  );
+  add(topPanel, BorderLayout.NORTH);
 
   // Table
   JScrollPane scrollPane = new JScrollPane(employeeTable);
-  employeeTable.setFillsViewportHeight(true);
   add(scrollPane, BorderLayout.CENTER);
 
-  // Buttons Panel
-//  if (PermissionHelper.hasPermission(currentUser, e)) {
-   JPanel buttonPanel = createButtonPanel();
-   add(buttonPanel, BorderLayout.SOUTH);
-
-
-  // Menu Bar
-  JMenuBar menuBar = createMenuBar();
-  setJMenuBar(menuBar);
- }
-
- private JPanel createHeaderPanel() {
-  JPanel headerPanel = new JPanel(new MigLayout("wrap 1", "[50%]10[50%]", "[]"));
-  JPanel userInfoPanel = new JPanel(new MigLayout("insets 10", "[fill]", "[]"));
-
-  userInfoPanel.add(new JLabel("Role: " + currentUser.getRole().getName()), "wrap");
-  userInfoPanel.add(new JLabel("Job Title: " + currentUser.getEmployee().getJobTitle()), "wrap");
-
-  headerPanel.add(userInfoPanel);
-
-
-   headerPanel.add(new TopPanel(
-           employeeService.getAllDepartments().stream().map(Department::getName).toList(),
-           employeeService.getAllEmploymentStatus(),
-           this::filterEmployees
-   ));
-
-  return headerPanel;
+  // Button Panel
+  JPanel buttonPanel = createButtonPanel();
+  add(buttonPanel, BorderLayout.SOUTH);
  }
 
  private JPanel createButtonPanel() {
-  JPanel buttonPanel = new JPanel(new MigLayout("insets 20", "[grow,fill]10[grow,fill]10[grow,fill]10[grow,fill]"));
+  JPanel panel = new JPanel(new MigLayout("fillx", "[]20[]20[]20[]", "[]"));
 
-  JButton addButton = createButton("Add Employee", this::addEmployeeAction);
-  JButton editButton = createButton("Edit Employee", this::editEmployeeAction);
-  JButton deleteButton = createButton("Delete Employee", this::deleteEmployeeAction);
-  JButton reportButton = createButton("Generate Report", this::generateReportAction);
+  if(AuthManager.account.getRole().getName().equals("ROLE_ADMIN") ||
+          AuthManager.account.getRole().getName().equals("ROLE_HR")) {
+   JButton addButton = new JButton("Add Employee");
+   addButton.addActionListener(e -> addEmployee());
+   panel.add(addButton);
+  }
 
-  buttonPanel.add(addButton);
-  buttonPanel.add(editButton);
-  buttonPanel.add(deleteButton);
-  buttonPanel.add(reportButton);
+  JButton reportButton = new JButton("Generate PDF");
+  reportButton.addActionListener(e -> generatePdfReport());
+  JButton deleteButton = new JButton("Delete Employee");
+  deleteButton.addActionListener(e -> deleteEmployee());
+  panel.add(reportButton);
+  panel.add(deleteButton);
 
-  return buttonPanel;
- }
-
- private JButton createButton(String text, Runnable action) {
-  JButton button = new JButton(text);
-  button.addActionListener(e -> action.run());
-  return button;
- }
-
- private JMenuBar createMenuBar() {
-  JMenuBar menuBar = new JMenuBar();
-
-  // File Menu
-  JMenu fileMenu = new JMenu("File");
-  fileMenu.setMnemonic(KeyEvent.VK_F);
-  fileMenu.add(createMenuItem("Export Data...", this::exportDataAction));
-  fileMenu.add(createMenuItem("Import Data...", this::importDataAction));
-  fileMenu.addSeparator();
-  fileMenu.add(createMenuItem("Exit", this::exitAction));
-
-  // Reports Menu
-  JMenu reportsMenu = new JMenu("Reports");
-  reportsMenu.setMnemonic(KeyEvent.VK_R);
-  reportsMenu.add(createMenuItem("Employee List", () -> generateReport("Employee List")));
-  reportsMenu.add(createMenuItem("Department Summary", () -> generateReport("Department Summary")));
-  reportsMenu.add(createMenuItem("Status Report", () -> generateReport("Status Report")));
-
-  menuBar.add(fileMenu);
-  menuBar.add(reportsMenu);
-  return menuBar;
- }
-
- private JMenuItem createMenuItem(String text, Runnable action) {
-  JMenuItem menuItem = new JMenuItem(text);
-  menuItem.addActionListener(e -> action.run());
-  return menuItem;
+  return panel;
  }
 
  private void loadInitialData() {
-  employeeService.getAllEmployees().forEach(this::addEmployee);
+  List<Employee> employees = visibleEmployees;
+  employees.forEach(this::addRowToTable);
  }
 
- private void filterEmployees() {
-  List<Employee> filtered = employeeService.getAllEmployees();
-  tableModel.setRowCount(0);
-  filtered.forEach(this::addEmployee);
- }
-
- public void addEmployee(Employee employee) {
-  Object[] row = {
+ private void addRowToTable(Employee employee) {
+  tableModel.addRow(new Object[]{
           employee.getId(),
           employee.getFullName(),
           employee.getEmployeeId(),
@@ -175,53 +119,87 @@ public class EmployeeManagementView extends JFrame {
           employee.getContactInfo().getPhoneNumber(),
           employee.getContactInfo().getEmail(),
           employee.getAddress()
-  };
-  tableModel.addRow(row);
-  employeeList.add(employee);
+  });
  }
 
- private void addEmployeeAction() {
-   showError("You do not have permission to add employees.");
+ public void addEmployee() {
+  new AddEmployeeDialog(this, tableModel, employeeService);
+
+ }
+
+ private void generatePdfReport() {
+  JFileChooser fileChooser = new JFileChooser();
+  fileChooser.setDialogTitle("Save PDF Report");
+  fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
+
+  fileChooser.setSelectedFile(new java.io.File("employee_report.pdf"));
+
+  int userSelection = fileChooser.showSaveDialog(this);
+  if (userSelection == JFileChooser.APPROVE_OPTION) {
+   String filePath = fileChooser.getSelectedFile().getAbsolutePath();
+
+   rapportService.generatePdf(visibleEmployees, filePath);
+   JOptionPane.showMessageDialog(this, "PDF saved to: " + filePath);
+  } else {
+   JOptionPane.showMessageDialog(this, "File save operation cancelled.");
+  }
+ }
+ private List<Employee> filterEmployees(String searchText, String department, String status){
+   return employeeService.getAllEmployees().stream()
+           .filter(employee -> (department.equals("All Departments") || employee.getDepartment().getName().equals(department)))
+           .filter(employee -> (status.equals("All Status") || employee.getEmploymentStatus().equals(status)))
+           .filter(employee -> employee.getFullName().toLowerCase().contains(searchText.toLowerCase()) ||
+                   employee.getJobTitle().toLowerCase().contains(searchText.toLowerCase()))
+           .toList();
+ }
+ private void filterEmployeesAndLoad(String searchText, String department, String status) {
+  visibleEmployees = filterEmployees(searchText, department, status);
+
+  loadTableData(visibleEmployees);
+ }
+ private void loadTableData(List<Employee> employees) {
+  tableModel.setRowCount(0);
+  for (Employee employee : employees) {
+   tableModel.addRow(new Object[]{
+           employee.getId(),
+           employee.getFullName(),
+           employee.getEmployeeId(),
+           employee.getJobTitle(),
+           employee.getDepartment().getName(),
+           employee.getHireDate(),
+           employee.getEmploymentStatus(),
+           employee.getContactInfo().getPhoneNumber(),
+           employee.getContactInfo().getEmail(),
+           employee.getAddress()
+   });
+  }
+ }
+ private void deleteEmployee() {
+  int selectedRow = employeeTable.getSelectedRow();
+
+  if (selectedRow == -1) {
+   JOptionPane.showMessageDialog(this, "Please select an employee to delete.", "No Selection", JOptionPane.WARNING_MESSAGE);
    return;
+  }
 
-  // Logic to add an employee
- }
+  int confirmed = JOptionPane.showConfirmDialog(
+          this,
+          "Are you sure you want to delete this employee?",
+          "Confirm Deletion",
+          JOptionPane.YES_NO_OPTION
+  );
 
- private void editEmployeeAction() {
-   showError("You do not have permission to edit employees.");
-   return;
+  if (confirmed == JOptionPane.YES_OPTION) {
+   long employeeId = (long) tableModel.getValueAt(employeeTable.convertRowIndexToModel(selectedRow), 0);
+   try {
+    employeeService.deleteEmployee(employeeId);
 
-  // Logic to edit an employee
- }
+    tableModel.removeRow(employeeTable.convertRowIndexToModel(selectedRow));
 
- private void deleteEmployeeAction() {
-   showError("You do not have permission to delete employees.");
-   return;
-
-  // Logic to delete an employee
- }
-
- private void generateReportAction() {
-  generateReport("General");
- }
-
- private void exportDataAction() {
-  // Logic to export data
- }
-
- private void importDataAction() {
-  // Logic to import data
- }
-
- private void exitAction() {
-  System.exit(0);
- }
-
- private void showError(String message) {
-  JOptionPane.showMessageDialog(this, message, "Error", JOptionPane.ERROR_MESSAGE);
- }
-
- private void generateReport(String reportType) {
-  JOptionPane.showMessageDialog(this, "Report generated: " + reportType);
+    JOptionPane.showMessageDialog(this, "Employee deleted successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+   } catch (Exception ex) {
+    JOptionPane.showMessageDialog(this, "Error deleting employee: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+   }
+  }
  }
 }
