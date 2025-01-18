@@ -6,6 +6,8 @@ import java.util.List;
 
 public interface RapportService {
 
-    void generatePdf(List<Employee> employees);
-    void generateXlsx(List<Employee> employees);
+    void generatePdf(List<Employee> employees, String filePath);
+    void generatePdf(Employee employees, String filePath);
+
+    void generateXlsx(List<Employee> employees, String filePath);
 }
