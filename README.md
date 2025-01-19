@@ -35,7 +35,7 @@ A Java-based Employee Management System that allows you to create, fetch, update
 
 1. **Clone the Repository**:
    ```bash
-   git clone https://github.com/your-repo/employee-management-system.git
+   git clone https://github.com/Employee-Records-Management-System/Swing-Interface.git
    cd employee-management-system
     ```
 2. **Configure the Environment:** Set the BASE_URL system property to your backend's base URL.
